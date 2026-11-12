@@ -1,0 +1,27 @@
+Package: FTucker3
+Title: Basis-Preserving Tucker Decomposition for Three-Way Functional Data
+Version: 0.0.0.9000
+Authors@R:
+    person(given = "Roberto William",
+           family = "Cascante Yarlequé",
+           email = "rcascantey@unemi.edu.ec",
+           role = c("aut", "cre"))
+Description: Implements a basis-preserving Tucker decomposition for three-way
+    functional data. Provides orthonormal Fourier basis expansion, construction
+    of functional coefficient tensors, orthogonal alternating estimation of
+    structural loading matrices and functional core tensors, reconstruction,
+    and cell-wise cross-validation for selecting structural ranks.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+Depends: R (>= 4.1.0)
+Imports:
+    dplyr,
+    magrittr
+Suggests:
+    knitr,
+    rmarkdown,
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3
+Config/roxygen2/version: 8.1.1
+VignetteBuilder: knitr

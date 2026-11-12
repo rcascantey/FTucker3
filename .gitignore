@@ -1,0 +1,15 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+.Rcheck/
+.Rbuildignore~
+inst/doc
+validacion/
+validar_FTucker3.R
+.Renviron
+*.tar.gz
+*.Rcheck/
+.httr-oauth
+.DS_Store
+.quarto

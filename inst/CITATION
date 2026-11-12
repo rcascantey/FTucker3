@@ -1,0 +1,26 @@
+
+# Citation for the FTucker3 package
+
+# Automatically cite the R package
+citation(auto = meta)
+
+# Cite the methodological article
+bibentry(
+  bibtype = "Article",
+  title = paste(
+    "A New Tucker Model for Three-Way Functional Data:",
+    "FTucker-3"
+  ),
+  author = c(
+    person("Roberto", "Cascante-Yarlequé"),
+    person("Purificación", "Galindo-Villardón"),
+    person("Fabricio", "Guevara-Viejó"),
+    person("Purificación", "Vicente-Galindo")
+  ),
+  journal = "Mathematics",
+  year = "2026",
+  volume = "14",
+  number = "19",
+  pages = "3589",
+  doi = "10.3390/math14193589"
+)

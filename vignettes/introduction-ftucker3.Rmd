@@ -1,0 +1,213 @@
+---
+title: "Introduction to FTucker3: Functional Tucker Decomposition"
+author: "Roberto William Cascante Yarlequé"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Introduction to FTucker3: Functional Tucker Decomposition}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", fig.width = 6, fig.height = 3.5)
+```
+
+# Overview
+
+`FTucker3` is an R package for a **basis-preserving Tucker decomposition of
+three-way functional data**. Each cell indexed by three structural modes contains
+a trajectory observed on a common functional domain. The package implements the
+FTUCKALS-3 alternating orthogonal estimation algorithm, along with Fourier
+basis expansion, coefficient-tensor construction, reconstruction, diagnostics,
+and structural-rank cross-validation.
+
+This vignette presents a **small, self-contained illustrative example**. It
+requires no Internet connection, downloads, or external data. The full NASA
+POWER case study and the extensive Monte Carlo experiments documented in the
+research are not run when this vignette is built.
+
+# Mathematical formulation
+
+Let $x_{ijk}(t)$ be a functional observation, with $i=1,\ldots,I$,
+$j=1,\ldots,J$, and $k=1,\ldots,K$. For a fixed basis of $N$ functions,
+
+$$
+x_{ijk}(t) \approx \sum_{n=1}^{N} c_{ijkn}\,\phi_n(t).
+$$
+
+The coefficients form a fourth-order tensor
+$\mathcal{C}\in\mathbb{R}^{I\times J\times K\times N}$.
+FTucker-3 approximates this tensor as
+
+$$
+\widehat{\mathcal{C}}
+ = \mathcal{G}\times_1 A\times_2 B\times_3 D,
+$$
+
+where $A\in\mathbb{R}^{I\times P}$,
+$B\in\mathbb{R}^{J\times Q}$,
+$D\in\mathbb{R}^{K\times R}$ are structural loading matrices, and
+$\mathcal{G}\in\mathbb{R}^{P\times Q\times R\times N}$ is the
+coefficient-domain core. The **functional-basis mode of length $N$ is not
+compressed**. In the implemented Fourier case, the fitted curves are recovered
+by evaluating the retained basis functions with reconstructed coefficients.
+
+FTUCKALS-3 updates the three structural loading matrices through successive
+conditional singular value decompositions (SVDs). Multiple random starts can
+be requested; the starting fit with the smallest reconstruction error is
+retained. As with standard multilinear factor models, individual loading
+matrices may be subject to sign and rotational indeterminacy.
+
+# Main functions
+
+| Function | Purpose |
+|:--|:--|
+| `fourier_basis_matrix()` | Evaluate the Fourier basis on a time grid |
+| `build_coefficient_tensor()` | Expand trajectories into a coefficient tensor |
+| `ftuckals3()` | Fit the coefficient-domain decomposition |
+| `ftucker3()` | Fit the integrated functional model |
+| `coefficients_to_functional_array()` | Reconstruct trajectories from coefficients |
+| `rank_cv_ftucker()` | Select structural ranks by cell-wise cross-validation |
+| `mode_spectrum()` and `core_energy_table()` | Summarize fitted structure |
+
+`ftucker3()` accepts an array of dimensions `I x J x K x M`, an observation
+time grid of length `M`, structural ranks `(P, Q, R)`, a Fourier basis
+dimension `N`, and a functional period `L`. If variables have different scales,
+they should be standardized appropriately **before** calling the interface.
+
+# Reproducible example: a low-rank functional tensor
+
+We construct a small tensor that lies exactly in the FTucker-3 model class.
+Its rank and Fourier basis are known. The example is **synthetic and intended
+only to demonstrate the software interface**.
+
+```{r example-data}
+library(FTucker3)
+set.seed(2026)
+
+I <- 5L; J <- 4L; K <- 3L
+P <- 2L; Q <- 2L; R <- 1L
+N <- 3L; M <- 12L
+
+t_grid <- 0:(M - 1L)
+Phi <- fourier_basis_matrix(t = t_grid, N = N, L = 12)
+
+A0 <- qr.Q(qr(matrix(stats::rnorm(I * P), I, P)))[, seq_len(P), drop = FALSE]
+B0 <- qr.Q(qr(matrix(stats::rnorm(J * Q), J, Q)))[, seq_len(Q), drop = FALSE]
+D0 <- qr.Q(qr(matrix(stats::rnorm(K * R), K, R)))[, seq_len(R), drop = FALSE]
+G0 <- array(stats::rnorm(P * Q * R * N), dim = c(P, Q, R, N))
+
+# Reconstruct the fourth-order coefficient tensor, retaining the basis mode.
+C_true <- array(0, dim = c(I, J, K, N))
+for (k in seq_len(K)) {
+  for (n in seq_len(N)) {
+    C_true[, , k, n] <-
+      (A0 %*% G0[, , 1L, n] %*% t(B0)) * D0[k, 1L]
+  }
+}
+
+# Evaluate all functional trajectories at the observed time points.
+X <- coefficients_to_functional_array(C_true, Phi)
+dim(X)
+```
+
+We now estimate the structural loading spaces and reconstruct the functional
+tensor. `center = FALSE` is appropriate for this specific known low-rank example,
+which was generated without additive marginal effects. With actual data,
+preprocessing and the centering choice require substantive consideration.
+
+```{r model-fit}
+fit <- ftucker3(
+  X = X,
+  t_grid = t_grid,
+  ranks = c(P, Q, R),
+  N = N,
+  L = 12,
+  center = FALSE,
+  max_iter = 200,
+  tol = 1e-10,
+  n_random_starts = 0
+)
+
+dim(fit$core)
+dim(fit$reconstructed)
+```
+
+# Reconstruction and interpretation
+
+```{r fit-diagnostics}
+relative_functional_error <- sqrt(
+  sum((X - fit$reconstructed)^2) / sum(X^2)
+)
+
+summary_fit <- data.frame(
+  RelativeFunctionalError = relative_functional_error,
+  CoefficientR2 = fit$optimization$R2_coeff,
+  Iterations = fit$optimization$iterations,
+  Converged = fit$optimization$converged
+)
+print(summary_fit)
+```
+
+A near-zero reconstruction error in this example checks recovery under an
+**exactly specified, noise-free** model. It is not evidence of the same
+accuracy on arbitrary observed data, and it does not replace validation with
+real data or under perturbations.
+
+```{r trajectory-plot, fig.cap="Observed and reconstructed trajectory for one tensor cell."}
+plot(t_grid, X[1, 1, 1, ], type = "l", lwd = 2,
+     xlab = "Time", ylab = "Functional response")
+lines(t_grid, fit$reconstructed[1, 1, 1, ], lty = 2, lwd = 2)
+legend("topright", legend = c("Original", "FTucker-3 reconstruction"),
+       lty = c(1, 2), lwd = 2, bty = "n")
+```
+
+The fitted object exposes `fit$loadings` (three structural modes), `fit$core`
+(the coefficient-domain core), `fit$functional_core` (the core evaluated over
+time), `fit$basis`, `fit$reconstructed_coefficients`,
+`fit$reconstructed`, and `fit$optimization` (fit diagnostics). Reconstructed
+values can also be obtained using `predict(fit)`.
+
+# Rank selection and further validation
+
+A separate function performs cell-wise structural-rank cross-validation on a
+**coefficient tensor**, rather than on raw trajectories. The following example
+shows its interface; it is not evaluated while building this vignette because
+rank search may require substantially more computation.
+
+```{r rank-cv, eval=FALSE}
+coeff <- build_coefficient_tensor(X, t_grid, N = 3, L = 12)$C
+cv <- rank_cv_ftucker(
+  C_raw = coeff,
+  P_candidates = 1:2,
+  Q_candidates = 1:2,
+  R_candidates = 1,
+  Kfold = 3,
+  max_iter = 50
+)
+cv$selected
+```
+
+The package development process has also included independent tests of
+controlled reconstruction, convergence across different Gaussian noise
+levels, and numerical equivalence checks against the original thesis code.
+Those development checks are **separate from this tutorial**, and their
+results should be retained in reproducible validation records rather than
+represented as new experiments performed by the vignette.
+
+# Scope and citation
+
+The current package implements the reusable computational core. The original
+research additionally includes NASA POWER data preparation, leakage-free
+cross-validation, Monte Carlo stress tests, Tucker-4 comparisons, and
+computational scalability experiments. These research workflows are not all
+part of the initial exported package interface.
+
+If the methodology is used in scientific work, cite the associated article:
+
+Cascante-Yarlequé, R., Galindo-Villardón, P., Guevara-Viejó, F., and
+Vicente-Galindo, P. (2026). *A New Tucker Model for Three-Way Functional
+Data: FTucker-3*. **Mathematics**, 14, 3589.
+<https://doi.org/10.3390/math14193589>
+
+`FTucker3` is under development and is not yet published on CRAN.
