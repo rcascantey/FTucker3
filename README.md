@@ -137,8 +137,4 @@ structural subspaces, convergence and model fit.
 
 Further validation and documentation are ongoing.
 
-## Development Status
 
-Development version: 0.0.0.9000
-
-The package is not yet published on CRAN.

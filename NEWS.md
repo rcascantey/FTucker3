@@ -1,4 +1,4 @@
-# FTucker3 0.0.0.9000 (Development Version)
+# FTucker3 0.1.0
 
 ## Initial Development
 
@@ -66,10 +66,4 @@
 * Successful local R CMD check with zero errors,
   zero warnings, and zero notes.
 
-## Development Status
 
-* The package remains under development.
-
-* The initial public release is planned as
-  version 0.1.0, subject to final checks
-  and CRAN acceptance.

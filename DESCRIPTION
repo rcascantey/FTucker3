@@ -1,6 +1,6 @@
 Package: FTucker3
 Title: Basis-Preserving Tucker Decomposition for Three-Way Functional Data
-Version: 0.0.0.9000
+Version: 0.1.0
 Authors@R:
     person(given = "Roberto William",
            family = "Cascante Yarlequé",
