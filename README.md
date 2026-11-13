@@ -1,92 +1,56 @@
-# FTucker3 — primer prototipo de paquete R
+# FTucker3: Tucker Decomposition for Three-Way Functional Data
 
-Este proyecto es un **primer paquete de desarrollo**, creado a partir del
-módulo **M0** del código consolidado original de la tesis doctoral.
-**No está publicado ni verificado en CRAN.**
+**FTucker3** is an R package for basis-preserving Tucker decomposition of three-way functional data. It implements the FTucker-3 methodology and the **FTUCKALS-3** alternating estimation algorithm, providing tools for functional basis expansion, model fitting, reconstruction, and model assessment.
 
-## Arquitectura
+The package is at **version 0.1.0**, its first release candidate for CRAN. **FTucker3 has not yet been published on CRAN.**
 
-- `R/01_tensor_utilities.R`: operaciones tensoriales y comparación de subespacios
-- `R/02_functional_basis.R`: expansión Fourier y selección de dimensión funcional
-- `R/03_centering.R`: centrado y descentrado de coeficientes
-- `R/04_ftuckals3.R`: algoritmo FTUCKALS-3 original
-- `R/05_cross_validation.R`: validación cruzada de rangos estructurales
-- `R/06_reconstruction.R`: reconstrucción funcional y del núcleo
-- `R/07_evaluation.R`: espectros y energía del núcleo
-- `R/08_tucker3_reference.R`: referencia Tucker-3 clásica
-- `R/09_public_interface.R`: nueva interfaz pública que orquesta el código original
+## Overview
 
-La lógica numérica de las funciones seleccionadas de M0 no se ha modificado;
-se ha creado una interfaz adicional para encadenarlas.
+FTucker3 is designed for observations indexed by three structural modes and measured along a common functional domain (such as time). The input is a four-dimensional numerical array with dimensions `I x J x K x M`, where `M` is the number of points at which each function is observed.
 
-## Uso en RStudio
+The workflow:
 
-```r
-# Abrir el proyecto FTucker3 y ejecutar:
-install.packages(c("devtools", "roxygen2", "testthat", "dplyr", "magrittr"))
-devtools::document()
-devtools::load_all()
-devtools::test()
-devtools::check()
-
-set.seed(23)
-X <- array(rnorm(3*3*3*8), c(3,3,3,8))
-fit <- ftucker3(X, t_grid=0:7, ranks=c(2,2,1), N=3,
-                L=8, max_iter=10)
-dim(fit$reconstructed)
-fit$optimization$R2_coeff
-```
-
-Las observaciones de ejemplo son **datos simulados para comprobar el paquete**,
-no sustituyen ni representan los datos reales NASA POWER.
-
-## Pendientes antes de CRAN
-
-1. Ejecutar y corregir `devtools::test()` y `devtools::check()` en R 4.5.2.
-2. Comparar resultados numéricos con la ejecución original de M0.
-3. Incorporar, como material reproducible separado, M1--M6 (NASA POWER,
-   validaciones sin fuga, Monte Carlo, Tucker-4 y escalabilidad).
-4. Revisar dependencias, documentación `man/`, licencia y atribución de terceros.
-5. Evitar acceso a Internet, grandes cómputos y escritura de archivos al
-   cargar el paquete o ejecutar pruebas automáticas.
-6. Revisar políticas CRAN y pruebas en múltiples plataformas antes del envío.
-
-**No ejecutar el script monolítico original desde el directorio `R/`**: contiene
-código de experimentación y efectos laterales (`rm`, salidas a disco, descargas).
-
+1. Represents the observed trajectories using a shared, orthonormal Fourier basis.
+2. Constructs a fourth-order tensor of functional expansion coefficients.
+3. Estimates three structural loading matrices and a functional core tensor using FTUCKALS-3.
+4. Preserves the functional coefficient mode without an additional Tucker rank reduction.
+5. Reconstructs fitted trajectories and provides convergence and model-fit diagnostics.
+6. Supports cross-validation for selecting the three structural ranks.
 
 ## Installation
 
-FTucker3 is currently under development and is not yet
-available on CRAN.
+FTucker3 is currently available from its [GitHub repository](https://github.com/rcascantey/FTucker3), while its initial CRAN submission is being prepared.
 
-To install the package from its local source directory:
+Install the development version from GitHub:
+
+```r
+install.packages("remotes")
+remotes::install_github("rcascantey/FTucker3")
+```
+
+Alternatively, install from a local copy of the package source:
 
 ```r
 install.packages("devtools")
 devtools::install("path/to/FTucker3")
 ```
 
-Replace `path/to/FTucker3` with the directory containing
-the package DESCRIPTION file.
+Replace `path/to/FTucker3` with the path to the folder containing the package's `DESCRIPTION` file.
 
-## Basic Example
+## Quick start
 
-The following example illustrates FTucker-3 estimation
-using a three-way functional tensor with 12 time points.
+The following reproducible example uses generated data solely to demonstrate the software interface; it is not an empirical application dataset.
 
 ```r
 library(FTucker3)
 
 set.seed(2026)
 
-# Functional observations
+# Three structural modes and 12 observation times
 X <- array(
   rnorm(5 * 4 * 3 * 12),
   dim = c(5, 4, 3, 12)
 )
-
-# Functional domain
 t_grid <- 0:11
 
 # Fit the FTucker-3 model
@@ -101,40 +65,77 @@ fit <- ftucker3(
   tol = 1e-8
 )
 
-# Model results
+# Estimated core and reconstructed trajectories
 dim(fit$core)
 dim(fit$reconstructed)
 
 # Structural loading matrices
 fit$loadings
 
-# Reconstruction diagnostics
+# Model diagnostics
 fit$optimization$R2_coeff
 fit$optimization$converged
+
+# Reconstructed trajectories on the original time grid
+X_hat <- predict(fit)
+dim(X_hat)
 ```
+
+Here, `ranks = c(2, 2, 1)` specifies the ranks for the three structural modes. `N = 3` selects three Fourier basis functions, and `L = 12` sets the Fourier period. The number of Fourier functions must be a **positive odd integer** not exceeding the number of observed time points.
+
+## Main functions
+
+| Function | Purpose |
+| --- | --- |
+| `ftucker3()` | Fit the FTucker-3 model from an array of observed trajectories. |
+| `ftuckals3()` | Estimate the structural Tucker decomposition from a coefficient tensor. |
+| `fourier_basis_matrix()` | Evaluate the common Fourier basis. |
+| `select_fourier_dimension()` | Help select the functional basis dimension. |
+| `build_coefficient_tensor()` | Construct the tensor of functional expansion coefficients. |
+| `center_coefficient_tensor()` / `decenter_coefficient_tensor()` | Center and restore coefficient tensors. |
+| `rank_cv_ftucker()` | Cross-validation for structural rank selection. |
+| `coefficients_to_functional_array()` | Reconstruct trajectories from coefficient tensors. |
+| `functional_core_array()` | Reconstruct the time-varying core tensor. |
+| `mode_spectrum()` / `core_energy_table()` | Examine structural spectra and core energy. |
+| `subspace_similarity()` | Compare estimated structural subspaces. |
+| `tucker3_fit()` | Fit a reference Tucker-3 decomposition. |
+
+Use `help(package = "FTucker3")` for the package index and `?ftucker3` for the main fitting interface. Additional methodological details and examples are included in the package vignette under `vignettes/`.
 
 ## Methodology
 
-FTucker3 represents functional observations using a
-finite Fourier basis and constructs a fourth-order
-coefficient tensor.
+FTucker3 expands functional observations in a finite Fourier basis, yielding a fourth-order coefficient tensor. The FTUCKALS-3 algorithm then estimates orthogonal loading matrices for the three structural dimensions through alternating updates based on singular value decomposition. The basis-coefficient dimension is retained, preserving the functional representation during the structural decomposition.
 
-The FTUCKALS-3 algorithm estimates three structural
-loading matrices through alternating orthogonal
-updates based on singular value decomposition.
+The methodology is described in the associated research article:
 
-The functional coefficient mode is preserved without
-additional rank reduction.
+Cascante-Yarlequé, R., Galindo-Villardón, P., Guevara-Viejó, F., and Vicente-Galindo, P. (2026). *A New Tucker Model for Three-Way Functional Data: FTucker-3*. **Mathematics, 14**(19), 3589. https://doi.org/10.3390/math14193589
 
-## Validation
+For the exact citation entries distributed with the software, run:
 
-The numerical implementation has been compared with
-the original doctoral research code.
+```r
+citation("FTucker3")
+```
 
-Four controlled comparisons showed numerical
-equivalence for reconstruction, core tensor,
-structural subspaces, convergence and model fit.
+## Verification and testing
 
-Further validation and documentation are ongoing.
+The implementation has been compared with the original doctoral research code. Four controlled comparisons assessed numerical equivalence, including reconstructed values, core estimates, structural subspaces, convergence, and model fit. The package also includes numerical unit tests and controlled reconstruction experiments.
 
+For version 0.1.0, the package passed checks on Windows, Ubuntu Linux, and macOS using R-hub and Win-builder. The Windows R-devel check reported one expected `NOTE` for an initial submission and terminology in the scientific citation; no errors or warnings were reported. The Linux and macOS checks completed with no errors, warnings, or notes. The local check under R 4.6.2 also completed with no errors, warnings, or notes, with the external system-clock check disabled.
 
+These checks evaluate software behavior and package compliance; they do not replace empirical validation for a particular application.
+
+## Project structure
+
+The source code is organized into modules under `R/` for tensor operations, Fourier basis processing, centering, FTUCKALS-3 estimation, cross-validation, reconstruction, diagnostics, and the public fitting interface. Documentation is provided in `man/` and `vignettes/`, with automated tests under `tests/`.
+
+The package includes reusable functions extracted from the doctoral implementation. The original experimental scripts are not run when loading the package.
+
+## License
+
+FTucker3 is distributed under the **MIT License**. See [LICENSE.md](LICENSE.md) for details.
+
+## Contact and issues
+
+- **Maintainer:** Roberto William Cascante Yarlequé — rcascantey@unemi.edu.ec
+- **Source code:** https://github.com/rcascantey/FTucker3
+- **Bug reports:** https://github.com/rcascantey/FTucker3/issues
